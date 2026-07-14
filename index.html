@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notenschnitt-Berechner</title>
+<style>
+  :root {
+    --bg: #f4f6fb;
+    --card: #ffffff;
+    --text: #1c2333;
+    --muted: #6b7280;
+    --border: #e2e6ef;
+    --accent: #3b5bdb;
+    --accent-soft: #e8edfd;
+    --danger: #d64545;
+    --shadow: 0 10px 30px rgba(28, 35, 51, 0.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12151f;
+      --card: #1b1f2e;
+      --text: #eef1f8;
+      --muted: #9aa3b5;
+      --border: #2c3247;
+      --accent: #7b93f5;
+      --accent-soft: #232c4d;
+      --danger: #f07575;
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 2rem 1rem;
+  }
+  main { width: 100%; max-width: 560px; }
+  h1 {
+    font-size: 1.6rem;
+    margin: 0 0 0.25rem;
+    text-align: center;
+  }
+  p.subtitle {
+    text-align: center;
+    color: var(--muted);
+    margin: 0 0 1.5rem;
+    font-size: 0.95rem;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    padding: 1.25rem;
+  }
+  .row-head, .grade-row {
+    display: grid;
+    grid-template-columns: 1fr 90px 90px 40px;
+    gap: 0.5rem;
+    align-items: center;
+  }
+  .row-head {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    padding: 0 0.25rem 0.4rem;
+  }
+  .grade-row { margin-bottom: 0.5rem; }
+  input {
+    width: 100%;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 1rem;
+  }
+  input:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+  }
+  input.invalid { border-color: var(--danger); }
+  button {
+    cursor: pointer;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+  .remove-btn {
+    background: transparent;
+    color: var(--muted);
+    font-size: 1.2rem;
+    padding: 0.4rem;
+    line-height: 1;
+  }
+  .remove-btn:hover { color: var(--danger); }
+  .actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+  }
+  .add-btn {
+    flex: 1;
+    background: var(--accent-soft);
+    color: var(--accent);
+    padding: 0.65rem;
+  }
+  .add-btn:hover { filter: brightness(0.96); }
+  .reset-btn {
+    background: transparent;
+    color: var(--muted);
+    padding: 0.65rem 1rem;
+    border: 1px solid var(--border);
+  }
+  .reset-btn:hover { color: var(--danger); border-color: var(--danger); }
+  .result {
+    margin-top: 1.25rem;
+    background: var(--accent-soft);
+    border-radius: 14px;
+    padding: 1rem 1.25rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .result .label { color: var(--muted); font-size: 0.9rem; }
+  .result .value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  .result .count {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-top: 0.15rem;
+  }
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.8rem;
+    margin-top: 1.25rem;
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Notenschnitt-Berechner</h1>
+  <p class="subtitle">Noten eintragen – der Durchschnitt wird sofort berechnet. Mit optionaler Gewichtung.</p>
+
+  <div class="card">
+    <div class="row-head">
+      <span>Fach (optional)</span>
+      <span>Note</span>
+      <span>Gewicht</span>
+      <span></span>
+    </div>
+    <div id="rows"></div>
+    <div class="actions">
+      <button type="button" class="add-btn" id="addRow">+ Note hinzufügen</button>
+      <button type="button" class="reset-btn" id="reset">Zurücksetzen</button>
+    </div>
+
+    <div class="result">
+      <div>
+        <span class="label">Dein Durchschnitt</span>
+        <span class="count" id="count">Noch keine Noten eingetragen</span>
+      </div>
+      <span class="value" id="average">–</span>
+    </div>
+  </div>
+
+  <footer>Deine Eingaben werden lokal im Browser gespeichert.</footer>
+</main>
+
+<script>
+(function () {
+  const STORAGE_KEY = "notenschnitt-daten";
+  const rowsEl = document.getElementById("rows");
+  const averageEl = document.getElementById("average");
+  const countEl = document.getElementById("count");
+
+  function createRow(data) {
+    data = data || { subject: "", grade: "", weight: "1" };
+    const row = document.createElement("div");
+    row.className = "grade-row";
+
+    const subject = document.createElement("input");
+    subject.type = "text";
+    subject.placeholder = "z. B. Mathe";
+    subject.value = data.subject;
+    subject.className = "subject";
+
+    const grade = document.createElement("input");
+    grade.type = "text";
+    grade.inputMode = "decimal";
+    grade.placeholder = "z. B. 2,5";
+    grade.value = data.grade;
+    grade.className = "grade";
+
+    const weight = document.createElement("input");
+    weight.type = "text";
+    weight.inputMode = "decimal";
+    weight.placeholder = "1";
+    weight.value = data.weight;
+    weight.className = "weight";
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "remove-btn";
+    remove.textContent = "✕";
+    remove.title = "Zeile entfernen";
+    remove.addEventListener("click", function () {
+      row.remove();
+      if (!rowsEl.children.length) createRow();
+      update();
+    });
+
+    row.append(subject, grade, weight, remove);
+    row.addEventListener("input", update);
+    rowsEl.appendChild(row);
+    return row;
+  }
+
+  function parseNumber(value) {
+    if (value.trim() === "") return NaN;
+    return parseFloat(value.replace(",", "."));
+  }
+
+  function update() {
+    let sum = 0, weightSum = 0, count = 0;
+    const entries = [];
+
+    rowsEl.querySelectorAll(".grade-row").forEach(function (row) {
+      const gradeInput = row.querySelector(".grade");
+      const weightInput = row.querySelector(".weight");
+      const grade = parseNumber(gradeInput.value);
+      const weightRaw = weightInput.value.trim() === "" ? 1 : parseNumber(weightInput.value);
+      const weight = isNaN(weightRaw) || weightRaw < 0 ? 1 : weightRaw;
+
+      gradeInput.classList.toggle("invalid", gradeInput.value.trim() !== "" && isNaN(grade));
+
+      if (!isNaN(grade) && weight > 0) {
+        sum += grade * weight;
+        weightSum += weight;
+        count++;
+      }
+
+      entries.push({
+        subject: row.querySelector(".subject").value,
+        grade: gradeInput.value,
+        weight: weightInput.value
+      });
+    });
+
+    if (weightSum > 0) {
+      averageEl.textContent = (sum / weightSum).toFixed(2).replace(".", ",");
+      countEl.textContent = count === 1 ? "1 Note" : count + " Noten";
+    } else {
+      averageEl.textContent = "–";
+      countEl.textContent = "Noch keine Noten eingetragen";
+    }
+
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+    } catch (e) { /* Speichern nicht möglich (z. B. privater Modus) */ }
+  }
+
+  document.getElementById("addRow").addEventListener("click", function () {
+    const row = createRow();
+    row.querySelector(".grade").focus();
+    update();
+  });
+
+  document.getElementById("reset").addEventListener("click", function () {
+    rowsEl.innerHTML = "";
+    for (let i = 0; i < 3; i++) createRow();
+    update();
+  });
+
+  let saved = null;
+  try {
+    saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+  } catch (e) { /* ungültige Daten ignorieren */ }
+
+  if (Array.isArray(saved) && saved.length) {
+    saved.forEach(createRow);
+  } else {
+    for (let i = 0; i < 3; i++) createRow();
+  }
+  update();
+})();
+</script>
+</body>
+</html>
